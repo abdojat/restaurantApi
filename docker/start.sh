@@ -19,6 +19,11 @@ fi
 chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache || true
 chmod -R 775 /var/www/storage /var/www/bootstrap/cache || true
 
+# Ensure log file exists and has proper permissions
+touch /var/www/storage/logs/laravel.log
+chown www-data:www-data /var/www/storage/logs/laravel.log
+chmod 664 /var/www/storage/logs/laravel.log
+
 # Generate application key if not set
 if [ -z "$APP_KEY" ]; then
   echo "Generating application key..."
