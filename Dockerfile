@@ -1,9 +1,17 @@
 # --- 1) Build PHP vendor
 FROM composer:2 AS vendor
 WORKDIR /app
+
+# Copy composer files first
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader
+
+# Install dependencies without running post-install scripts that require Laravel
+RUN composer install --no-dev --prefer-dist --no-progress --no-interaction --no-scripts
+
+# Copy application code
 COPY . .
+
+# Optimize autoloader without running Laravel-specific scripts
 RUN composer dump-autoload -o
 
 # --- 2) Runtime: PHP-FPM + Nginx + Supervisor

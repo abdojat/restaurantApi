@@ -31,6 +31,10 @@ php artisan config:clear || true
 php artisan route:clear || true
 php artisan view:clear || true
 php artisan cache:clear || true
+php artisan clear-compiled || true
+
+# Run package discovery
+php artisan package:discover --ansi || true
 
 # Cache for production
 php artisan config:cache || true
