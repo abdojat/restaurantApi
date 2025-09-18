@@ -98,7 +98,9 @@ if [ ! -s /var/www/storage/database/database.sqlite ] || [ $(php artisan tinker 
   php artisan db:seed --force
 fi
 
-# Create storage link
+# Create storage link (remove existing if it exists)
+echo "Creating storage link..."
+rm -f /var/www/public/storage || true
 php artisan storage:link || true
 
 echo "Laravel application is ready!"

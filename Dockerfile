@@ -66,13 +66,13 @@ RUN php artisan storage:link || true
 
 # Permissions
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache && \
-    chmod -R 775 /var/www/storage /var/www/bootstrap/cache && \
+    chmod -R 777 /var/www/storage /var/www/bootstrap/cache && \
     touch /var/www/storage/logs/laravel.log && \
     chown www-data:www-data /var/www/storage/logs/laravel.log && \
-    chmod 664 /var/www/storage/logs/laravel.log && \
+    chmod 777 /var/www/storage/logs/laravel.log && \
     touch /var/www/storage/database/database.sqlite && \
     chown www-data:www-data /var/www/storage/database/database.sqlite && \
-    chmod 666 /var/www/storage/database/database.sqlite
+    chmod 777 /var/www/storage/database/database.sqlite
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
