@@ -72,7 +72,7 @@ RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache && \
     chmod 664 /var/www/storage/logs/laravel.log && \
     touch /var/www/storage/database/database.sqlite && \
     chown www-data:www-data /var/www/storage/database/database.sqlite && \
-    chmod 664 /var/www/storage/database/database.sqlite
+    chmod 666 /var/www/storage/database/database.sqlite
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

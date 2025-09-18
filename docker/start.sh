@@ -10,23 +10,34 @@ mkdir -p /var/www/storage/logs
 mkdir -p /var/www/storage/database
 
 # Ensure SQLite DB file exists and has proper permissions
-if [ ! -f /var/www/storage/database/database.sqlite ]; then
-  echo "Creating SQLite database..."
-  touch /var/www/storage/database/database.sqlite
+echo "Setting up SQLite database..."
+
+# Remove existing database file if it has wrong permissions
+if [ -f /var/www/storage/database/database.sqlite ]; then
+  echo "Removing existing database file to fix permissions..."
+  rm -f /var/www/storage/database/database.sqlite
 fi
 
+# Create database file with proper permissions
+echo "Creating new SQLite database with correct permissions..."
+touch /var/www/storage/database/database.sqlite
+
 # Set proper permissions for SQLite database and directory
+echo "Setting database permissions..."
 chmod 755 /var/www/storage/database
-chmod 664 /var/www/storage/database/database.sqlite
+chmod 666 /var/www/storage/database/database.sqlite
 chown www-data:www-data /var/www/storage/database/database.sqlite
 
 # Verify database is writable
 echo "Verifying database permissions..."
+ls -la /var/www/storage/database/
 if [ -w /var/www/storage/database/database.sqlite ]; then
   echo "Database is writable ✓"
 else
   echo "Database is NOT writable ✗"
-  ls -la /var/www/storage/database/
+  echo "Attempting to fix permissions again..."
+  chmod 666 /var/www/storage/database/database.sqlite
+  chown www-data:www-data /var/www/storage/database/database.sqlite
 fi
 
 # Set proper permissions
@@ -69,6 +80,18 @@ php artisan view:cache || true
 echo "Running database migrations..."
 php artisan migrate --force
 
+# Verify database is still writable after migrations
+echo "Verifying database permissions after migrations..."
+ls -la /var/www/storage/database/
+if [ -w /var/www/storage/database/database.sqlite ]; then
+  echo "Database is still writable after migrations ✓"
+else
+  echo "Database became read-only after migrations ✗"
+  echo "Fixing permissions again..."
+  chmod 666 /var/www/storage/database/database.sqlite
+  chown www-data:www-data /var/www/storage/database/database.sqlite
+fi
+
 # Seed database only if it's empty
 if [ ! -s /var/www/storage/database/database.sqlite ] || [ $(php artisan tinker --execute="echo \App\Models\User::count();") -eq 0 ]; then
   echo "Seeding database with initial data..."
@@ -79,6 +102,19 @@ fi
 php artisan storage:link || true
 
 echo "Laravel application is ready!"
+
+# Final database permission check before starting web server
+echo "Final database permission check..."
+ls -la /var/www/storage/database/
+if [ -w /var/www/storage/database/database.sqlite ]; then
+  echo "Database is writable - ready to start web server ✓"
+else
+  echo "Database is NOT writable - attempting final fix..."
+  chmod 666 /var/www/storage/database/database.sqlite
+  chown www-data:www-data /var/www/storage/database/database.sqlite
+  ls -la /var/www/storage/database/
+fi
+
 echo "Starting web server..."
 
 # Start supervisor (runs php-fpm + nginx)
