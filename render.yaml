@@ -1,38 +1,42 @@
 services:
   # Web Service (your Laravel app)
   - type: web
-    name: laravel-app
+    name: shami-restaurant-api
     env: docker
-    repo: https://github.com/abdojat/restaurantApi # Change this to your repo URL
-    region: oregon # Optional: choose a region closest to you
-    plan: free # Optional: free instance type
+    repo: https://github.com/abdojat/restaurantApi # Change this to your actual repo URL
+    region: oregon # Choose a region closest to you
+    plan: starter # Use starter plan for better performance
     healthCheckPath: /api/menu/recommendations
     dockerfilePath: ./server/Dockerfile
-    dockerContext: .
+    dockerContext: ./server
+    buildCommand: echo "Building with Docker..."
+    startCommand: /start.sh
     envVars:
-      - key: APP_URL
-        fromService:
-          type: web
-          name: laravel-app
-          property: url
-      - key: DB_CONNECTION
-        value: pgsql
-      - key: DATABASE_URL
-        fromDatabase:
-          name: laravel-db
-          property: connectionString
-      - key: APP_KEY
-        generateValue: true # Render will generate a secure key
+      - key: APP_NAME
+        value: "Shami Restaurant API"
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
         value: false
+      - key: APP_URL
+        fromService:
+          type: web
+          name: shami-restaurant-api
+          property: url
+      - key: APP_KEY
+        generateValue: true # Render will generate a secure key
+      - key: DB_CONNECTION
+        value: sqlite
+      - key: DB_DATABASE
+        value: /var/www/storage/database/database.sqlite
+      - key: CACHE_DRIVER
+        value: file
+      - key: SESSION_DRIVER
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: error
 
-  # PostgreSQL Database
-  - type: psql
-    name: laravel-db
-    region: oregon # Optional: same region as your web service
-    plan: free # Optional: free instance type
-    databaseName: laravel
-    user: laravel
-    version: "15"
