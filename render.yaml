@@ -1,4 +1,19 @@
 services:
+  # PostgreSQL Database
+  - type: pserv
+    name: shami-restaurant-db
+    env: docker
+    plan: starter
+    region: oregon
+    dockerImage: postgres:15
+    envVars:
+      - key: POSTGRES_DB
+        value: shami_restaurant
+      - key: POSTGRES_USER
+        value: shami_user
+      - key: POSTGRES_PASSWORD
+        generateValue: true
+
   # Web Service (your Laravel app)
   - type: web
     name: shami-restaurant-api
@@ -26,9 +41,26 @@ services:
       - key: APP_KEY
         generateValue: true # Render will generate a secure key
       - key: DB_CONNECTION
-        value: sqlite
+        value: pgsql
+      - key: DB_HOST
+        fromService:
+          type: pserv
+          name: shami-restaurant-db
+          property: host
+      - key: DB_PORT
+        fromService:
+          type: pserv
+          name: shami-restaurant-db
+          property: port
       - key: DB_DATABASE
-        value: /var/www/storage/database/database.sqlite
+        value: shami_restaurant
+      - key: DB_USERNAME
+        value: shami_user
+      - key: DB_PASSWORD
+        fromService:
+          type: pserv
+          name: shami-restaurant-db
+          property: password
       - key: CACHE_DRIVER
         value: file
       - key: SESSION_DRIVER

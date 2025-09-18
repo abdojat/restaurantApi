@@ -9,36 +9,11 @@ mkdir -p /var/www/storage/framework/{cache,sessions,views}
 mkdir -p /var/www/storage/logs
 mkdir -p /var/www/storage/database
 
-# Ensure SQLite DB file exists and has proper permissions
-echo "Setting up SQLite database..."
-
-# Remove existing database file if it has wrong permissions
-if [ -f /var/www/storage/database/database.sqlite ]; then
-  echo "Removing existing database file to fix permissions..."
-  rm -f /var/www/storage/database/database.sqlite
-fi
-
-# Create database file with proper permissions
-echo "Creating new SQLite database with correct permissions..."
-touch /var/www/storage/database/database.sqlite
-
-# Set proper permissions for SQLite database and directory
-echo "Setting database permissions..."
-chmod 777 /var/www/storage/database
-chmod 777 /var/www/storage/database/database.sqlite
-chown www-data:www-data /var/www/storage/database/database.sqlite
-
-# Verify database is writable
-echo "Verifying database permissions..."
-ls -la /var/www/storage/database/
-if [ -w /var/www/storage/database/database.sqlite ]; then
-  echo "Database is writable ✓"
-else
-  echo "Database is NOT writable ✗"
-  echo "Attempting to fix permissions again..."
-  chmod 777 /var/www/storage/database/database.sqlite
-  chown www-data:www-data /var/www/storage/database/database.sqlite
-fi
+# Database setup (PostgreSQL)
+echo "Setting up PostgreSQL database connection..."
+echo "Database host: ${DB_HOST:-localhost}"
+echo "Database name: ${DB_DATABASE:-laravel}"
+echo "Database user: ${DB_USERNAME:-postgres}"
 
 # Set proper permissions
 chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache || true
@@ -80,22 +55,13 @@ php artisan view:cache || true
 echo "Running database migrations..."
 php artisan migrate --force
 
-# Verify database is still writable after migrations
-echo "Verifying database permissions after migrations..."
-ls -la /var/www/storage/database/
-if [ -w /var/www/storage/database/database.sqlite ]; then
-  echo "Database is still writable after migrations ✓"
-else
-  echo "Database became read-only after migrations ✗"
-  echo "Fixing permissions again..."
-  chmod 777 /var/www/storage/database/database.sqlite
-  chown www-data:www-data /var/www/storage/database/database.sqlite
-fi
-
 # Seed database only if it's empty
-if [ ! -s /var/www/storage/database/database.sqlite ] || [ $(php artisan tinker --execute="echo \App\Models\User::count();") -eq 0 ]; then
+echo "Checking if database needs seeding..."
+if [ $(php artisan tinker --execute="echo \App\Models\User::count();") -eq 0 ]; then
   echo "Seeding database with initial data..."
   php artisan db:seed --force
+else
+  echo "Database already has data, skipping seeding..."
 fi
 
 # Create storage link (remove existing if it exists)
@@ -105,17 +71,9 @@ php artisan storage:link || true
 
 echo "Laravel application is ready!"
 
-# Final database permission check before starting web server
-echo "Final database permission check..."
-ls -la /var/www/storage/database/
-if [ -w /var/www/storage/database/database.sqlite ]; then
-  echo "Database is writable - ready to start web server ✓"
-else
-  echo "Database is NOT writable - attempting final fix..."
-  chmod 777 /var/www/storage/database/database.sqlite
-  chown www-data:www-data /var/www/storage/database/database.sqlite
-  ls -la /var/www/storage/database/
-fi
+# Final database connection check before starting web server
+echo "Testing database connection..."
+php artisan tinker --execute="echo 'Database connection: ' . (DB::connection()->getPdo() ? 'OK' : 'FAILED');" || echo "Database connection test failed"
 
 echo "Starting web server..."
 

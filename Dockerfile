@@ -19,10 +19,10 @@ RUN composer dump-autoload -o
 FROM php:8.3-fpm-alpine
 
 # OS deps
-RUN apk add --no-cache nginx supervisor bash tzdata icu-dev libzip-dev oniguruma-dev sqlite-dev git curl
+RUN apk add --no-cache nginx supervisor bash tzdata icu-dev libzip-dev oniguruma-dev sqlite-dev postgresql-dev git curl
 
 # PHP extensions
-RUN docker-php-ext-install pdo pdo_sqlite bcmath mbstring zip intl opcache
+RUN docker-php-ext-install pdo pdo_sqlite pdo_pgsql bcmath mbstring zip intl opcache
 
 # Opcache for production
 RUN { \
@@ -69,10 +69,7 @@ RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache && \
     chmod -R 777 /var/www/storage /var/www/bootstrap/cache && \
     touch /var/www/storage/logs/laravel.log && \
     chown www-data:www-data /var/www/storage/logs/laravel.log && \
-    chmod 777 /var/www/storage/logs/laravel.log && \
-    touch /var/www/storage/database/database.sqlite && \
-    chown www-data:www-data /var/www/storage/database/database.sqlite && \
-    chmod 777 /var/www/storage/database/database.sqlite
+    chmod 777 /var/www/storage/logs/laravel.log
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
