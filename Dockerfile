@@ -11,10 +11,6 @@ RUN composer install --no-dev --prefer-dist --no-progress --no-interaction --no-
 # Copy application code
 COPY . .
 
-# Verify the AuthController file exists and has correct content
-RUN ls -la app/Http/Controllers/AuthController.php || echo "AuthController.php not found"
-RUN head -20 app/Http/Controllers/AuthController.php || echo "Cannot read AuthController.php"
-
 # Clear any existing autoloader cache and regenerate
 RUN rm -f vendor/composer/autoload_classmap.php vendor/composer/autoload_static.php || true
 RUN composer dump-autoload -o
