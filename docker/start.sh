@@ -24,8 +24,8 @@ touch /var/www/storage/database/database.sqlite
 
 # Set proper permissions for SQLite database and directory
 echo "Setting database permissions..."
-chmod 755 /var/www/storage/database
-chmod 666 /var/www/storage/database/database.sqlite
+chmod 777 /var/www/storage/database
+chmod 777 /var/www/storage/database/database.sqlite
 chown www-data:www-data /var/www/storage/database/database.sqlite
 
 # Verify database is writable
@@ -36,18 +36,18 @@ if [ -w /var/www/storage/database/database.sqlite ]; then
 else
   echo "Database is NOT writable ✗"
   echo "Attempting to fix permissions again..."
-  chmod 666 /var/www/storage/database/database.sqlite
+  chmod 777 /var/www/storage/database/database.sqlite
   chown www-data:www-data /var/www/storage/database/database.sqlite
 fi
 
 # Set proper permissions
 chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache || true
-chmod -R 775 /var/www/storage /var/www/bootstrap/cache || true
+chmod -R 777 /var/www/storage /var/www/bootstrap/cache || true
 
 # Ensure log file exists and has proper permissions
 touch /var/www/storage/logs/laravel.log
 chown www-data:www-data /var/www/storage/logs/laravel.log
-chmod 664 /var/www/storage/logs/laravel.log
+chmod 777 /var/www/storage/logs/laravel.log
 
 # Generate application key if not set
 if [ -z "$APP_KEY" ]; then
@@ -88,7 +88,7 @@ if [ -w /var/www/storage/database/database.sqlite ]; then
 else
   echo "Database became read-only after migrations ✗"
   echo "Fixing permissions again..."
-  chmod 666 /var/www/storage/database/database.sqlite
+  chmod 777 /var/www/storage/database/database.sqlite
   chown www-data:www-data /var/www/storage/database/database.sqlite
 fi
 
@@ -110,7 +110,7 @@ if [ -w /var/www/storage/database/database.sqlite ]; then
   echo "Database is writable - ready to start web server ✓"
 else
   echo "Database is NOT writable - attempting final fix..."
-  chmod 666 /var/www/storage/database/database.sqlite
+  chmod 777 /var/www/storage/database/database.sqlite
   chown www-data:www-data /var/www/storage/database/database.sqlite
   ls -la /var/www/storage/database/
 fi
