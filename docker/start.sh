@@ -38,6 +38,11 @@ php artisan view:clear || true
 php artisan cache:clear || true
 php artisan clear-compiled || true
 
+# Clear autoloader cache and regenerate
+echo "Regenerating autoloader..."
+rm -f bootstrap/cache/packages.php bootstrap/cache/services.php || true
+composer dump-autoload -o || true
+
 # Run package discovery
 php artisan package:discover --ansi || true
 
