@@ -9,10 +9,24 @@ mkdir -p /var/www/storage/framework/{cache,sessions,views}
 mkdir -p /var/www/storage/logs
 mkdir -p /var/www/storage/database
 
-# Ensure SQLite DB file exists
+# Ensure SQLite DB file exists and has proper permissions
 if [ ! -f /var/www/storage/database/database.sqlite ]; then
   echo "Creating SQLite database..."
   touch /var/www/storage/database/database.sqlite
+fi
+
+# Set proper permissions for SQLite database and directory
+chmod 755 /var/www/storage/database
+chmod 664 /var/www/storage/database/database.sqlite
+chown www-data:www-data /var/www/storage/database/database.sqlite
+
+# Verify database is writable
+echo "Verifying database permissions..."
+if [ -w /var/www/storage/database/database.sqlite ]; then
+  echo "Database is writable ✓"
+else
+  echo "Database is NOT writable ✗"
+  ls -la /var/www/storage/database/
 fi
 
 # Set proper permissions
