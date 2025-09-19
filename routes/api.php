@@ -17,8 +17,17 @@ Route::prefix('auth')->group(function () {
     Route::post('password/reset',  [AuthController::class, 'resetPassword']);
 });
 
-// Public image route - Enhanced with better error handling
-Route::get('image/{path}', function ($path) {
+// Public image route - Enhanced with better error handling and CORS
+Route::match(['GET', 'OPTIONS'], 'image/{path}', function ($path) {
+    // Handle CORS preflight requests
+    if (request()->isMethod('OPTIONS')) {
+        return response('', 200)
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+            ->header('Access-Control-Max-Age', '86400');
+    }
+    
     try {
         // Security: Prevent directory traversal
         $path = str_replace(['../', '..\\'], '', $path);
@@ -38,7 +47,10 @@ Route::get('image/{path}', function ($path) {
                 'error' => 'Image not found',
                 'path' => $path,
                 'debug' => 'File does not exist: ' . $fullPath
-            ], 404);
+            ], 404)
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         }
         
         $file = file_get_contents($fullPath);
@@ -48,8 +60,8 @@ Route::get('image/{path}', function ($path) {
             ->header('Content-Type', $mimeType)
             ->header('Cache-Control', 'public, max-age=3600')
             ->header('Access-Control-Allow-Origin', '*')
-            ->header('Access-Control-Allow-Methods', 'GET')
-            ->header('Access-Control-Allow-Headers', 'Content-Type');
+            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
             
     } catch (\Exception $e) {
         \Log::error('Image route error:', [
@@ -60,12 +72,24 @@ Route::get('image/{path}', function ($path) {
         return response()->json([
             'error' => 'Failed to serve image',
             'message' => $e->getMessage()
-        ], 500);
+        ], 500)
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     }
 })->where('path', '.*');
 
 // Alternative image route for direct storage access (for backward compatibility)
-Route::get('storage/{path}', function ($path) {
+Route::match(['GET', 'OPTIONS'], 'storage/{path}', function ($path) {
+    // Handle CORS preflight requests
+    if (request()->isMethod('OPTIONS')) {
+        return response('', 200)
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+            ->header('Access-Control-Max-Age', '86400');
+    }
+    
     try {
         // Security: Prevent directory traversal
         $path = str_replace(['../', '..\\'], '', $path);
@@ -85,7 +109,10 @@ Route::get('storage/{path}', function ($path) {
                 'error' => 'Image not found',
                 'path' => $path,
                 'debug' => 'File does not exist: ' . $fullPath
-            ], 404);
+            ], 404)
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         }
         
         $file = file_get_contents($fullPath);
@@ -95,8 +122,8 @@ Route::get('storage/{path}', function ($path) {
             ->header('Content-Type', $mimeType)
             ->header('Cache-Control', 'public, max-age=3600')
             ->header('Access-Control-Allow-Origin', '*')
-            ->header('Access-Control-Allow-Methods', 'GET')
-            ->header('Access-Control-Allow-Headers', 'Content-Type');
+            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
             
     } catch (\Exception $e) {
         \Log::error('Storage image route error:', [
@@ -107,7 +134,10 @@ Route::get('storage/{path}', function ($path) {
         return response()->json([
             'error' => 'Failed to serve image',
             'message' => $e->getMessage()
-        ], 500);
+        ], 500)
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     }
 })->where('path', '.*');
 
