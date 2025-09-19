@@ -72,9 +72,24 @@ while [ $attempt -le $max_attempts ]; do
     fi
 done
 
-# Run migrations and seeding
-echo "Running database migrations and seeding..."
-php artisan migrate:fresh --force --seed
+# Run migrations (check if database needs initialization)
+echo "Checking database migration status..."
+
+# Check if migrations table exists and has migrations
+if php artisan migrate:status | grep -q "No migrations found" || ! php artisan migrate:status >/dev/null 2>&1; then
+    echo "Database appears to be uninitialized. Running initial setup..."
+    # Only run seeding on fresh database
+    if [ "${FORCE_DB_SEED:-false}" = "true" ] || [ "${APP_ENV:-production}" = "local" ]; then
+        echo "Running migrations with seeding..."
+        php artisan migrate --force --seed
+    else
+        echo "Running migrations only (no seeding in production unless FORCE_DB_SEED=true)..."
+        php artisan migrate --force
+    fi
+else
+    echo "Database already initialized. Running pending migrations only..."
+    php artisan migrate --force
+fi
 
 # Post-database Laravel optimizations
 echo "Applying Laravel production optimizations..."

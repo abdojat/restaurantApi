@@ -75,4 +75,6 @@ services:
         value: error
       - key: LOG_STACK
         value: single
+      - key: FORCE_DB_SEED
+        value: false # Set to true only if you want to force seeding on every restart (NOT recommended for production)
 
