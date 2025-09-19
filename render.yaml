@@ -24,8 +24,10 @@ services:
     healthCheckPath: /api/menu/recommendations
     dockerfilePath: ./server/Dockerfile
     dockerContext: ./server
-    buildCommand: echo "Building with Docker..."
+    buildCommand: echo "Building optimized Docker image..."
     startCommand: /start.sh
+    buildTimeout: 1800 # 30 minutes timeout
+    deployTimeout: 600 # 10 minutes deploy timeout
     envVars:
       - key: APP_NAME
         value: "Shami Restaurant API"

@@ -7,6 +7,7 @@ use App\Http\Controllers\CashierController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\ImageController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -17,129 +18,22 @@ Route::prefix('auth')->group(function () {
     Route::post('password/reset',  [AuthController::class, 'resetPassword']);
 });
 
-// Public image route - Enhanced with better error handling and CORS
-Route::match(['GET', 'OPTIONS'], 'image/{path}', function ($path) {
-    // Handle CORS preflight requests
-    if (request()->isMethod('OPTIONS')) {
-        return response('', 200)
-            ->header('Access-Control-Allow-Origin', '*')
-            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-            ->header('Access-Control-Max-Age', '86400');
-    }
-    
-    try {
-        // Security: Prevent directory traversal
-        $path = str_replace(['../', '..\\'], '', $path);
-        
-        $fullPath = storage_path('app/public/' . $path);
-        
-        // Log for debugging
-        \Log::info('Image request:', [
-            'requested_path' => $path,
-            'full_path' => $fullPath,
-            'exists' => file_exists($fullPath)
-        ]);
-        
-        if (!file_exists($fullPath)) {
-            \Log::warning('Image not found:', ['path' => $fullPath]);
-            return response()->json([
-                'error' => 'Image not found',
-                'path' => $path,
-                'debug' => 'File does not exist: ' . $fullPath
-            ], 404)
-            ->header('Access-Control-Allow-Origin', '*')
-            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        }
-        
-        $file = file_get_contents($fullPath);
-        $mimeType = mime_content_type($fullPath) ?: 'image/jpeg';
-        
-        return response($file, 200)
-            ->header('Content-Type', $mimeType)
-            ->header('Cache-Control', 'public, max-age=3600')
-            ->header('Access-Control-Allow-Origin', '*')
-            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-            
-    } catch (\Exception $e) {
-        \Log::error('Image route error:', [
-            'path' => $path,
-            'error' => $e->getMessage()
-        ]);
-        
-        return response()->json([
-            'error' => 'Failed to serve image',
-            'message' => $e->getMessage()
-        ], 500)
-        ->header('Access-Control-Allow-Origin', '*')
-        ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    }
-})->where('path', '.*');
+// Test route to verify API is working
+Route::get('test', function () {
+    return response()->json([
+        'message' => 'API is working!',
+        'timestamp' => now(),
+        'cors' => 'enabled'
+    ])->header('Access-Control-Allow-Origin', '*');
+});
 
-// Alternative image route for direct storage access (for backward compatibility)
-Route::match(['GET', 'OPTIONS'], 'storage/{path}', function ($path) {
-    // Handle CORS preflight requests
-    if (request()->isMethod('OPTIONS')) {
-        return response('', 200)
-            ->header('Access-Control-Allow-Origin', '*')
-            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-            ->header('Access-Control-Max-Age', '86400');
-    }
-    
-    try {
-        // Security: Prevent directory traversal
-        $path = str_replace(['../', '..\\'], '', $path);
-        
-        $fullPath = storage_path('app/public/' . $path);
-        
-        // Log for debugging
-        \Log::info('Storage image request:', [
-            'requested_path' => $path,
-            'full_path' => $fullPath,
-            'exists' => file_exists($fullPath)
-        ]);
-        
-        if (!file_exists($fullPath)) {
-            \Log::warning('Storage image not found:', ['path' => $fullPath]);
-            return response()->json([
-                'error' => 'Image not found',
-                'path' => $path,
-                'debug' => 'File does not exist: ' . $fullPath
-            ], 404)
-            ->header('Access-Control-Allow-Origin', '*')
-            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        }
-        
-        $file = file_get_contents($fullPath);
-        $mimeType = mime_content_type($fullPath) ?: 'image/jpeg';
-        
-        return response($file, 200)
-            ->header('Content-Type', $mimeType)
-            ->header('Cache-Control', 'public, max-age=3600')
-            ->header('Access-Control-Allow-Origin', '*')
-            ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-            
-    } catch (\Exception $e) {
-        \Log::error('Storage image route error:', [
-            'path' => $path,
-            'error' => $e->getMessage()
-        ]);
-        
-        return response()->json([
-            'error' => 'Failed to serve image',
-            'message' => $e->getMessage()
-        ], 500)
-        ->header('Access-Control-Allow-Origin', '*')
-        ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    }
-})->where('path', '.*');
+// Image serving routes with proper CORS handling
+Route::options('image/{path}', [ImageController::class, 'handleOptions'])->where('path', '.*');
+Route::get('image/{path}', [ImageController::class, 'serveImage'])->where('path', '.*');
+
+// Alternative storage route for backward compatibility
+Route::options('storage/{path}', [ImageController::class, 'handleOptions'])->where('path', '.*');
+Route::get('storage/{path}', [ImageController::class, 'serveImage'])->where('path', '.*');
 
 // Public menu routes
 Route::prefix('menu')->group(function () {

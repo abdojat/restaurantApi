@@ -1,51 +1,43 @@
 #!/usr/bin/env bash
-set -o errexit  # stop on first error
+set -o errexit
 
-echo "🏪 Shami Restaurant - Render Build Process"
-echo "==========================================="
+echo "🏪 Shami Restaurant - Optimized Build Process"
+echo "=============================================="
 
-# Install PHP dependencies
+# Quick dependency check
+if ! command -v composer &> /dev/null; then
+    echo "❌ Composer not found. Installing..."
+    curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+fi
+
+# Install dependencies with optimizations
 echo "📦 Installing PHP dependencies..."
-composer install --optimize-autoloader --no-dev --no-interaction
+composer install --optimize-autoloader --no-dev --no-interaction --no-scripts
 
-# Create necessary directories
-echo "📁 Creating storage directories..."
-mkdir -p storage/app/public
-mkdir -p storage/framework/{cache,sessions,views}
-mkdir -p storage/logs
-mkdir -p storage/database
-mkdir -p bootstrap/cache
+# Create directories
+echo "📁 Creating directories..."
+mkdir -p storage/{app/public,framework/{cache,sessions,views},logs,database} bootstrap/cache
 
 # Set permissions
 echo "🔐 Setting permissions..."
-chmod -R 775 storage bootstrap/cache
+chmod -R 755 storage bootstrap/cache
 
-# Generate application key if not set
+# Generate key if needed
 if [ -z "$APP_KEY" ]; then
   echo "🔑 Generating application key..."
   php artisan key:generate --force
 fi
 
-# Clear any existing cache
-echo "🧹 Clearing existing cache..."
-php artisan config:clear || true
-php artisan route:clear || true
-php artisan view:clear || true
-php artisan cache:clear || true
-
-# Laravel optimization for production
-echo "⚡ Optimizing Laravel for production..."
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-
-# Note: Database operations will be handled by the Docker container startup
-echo "📝 Note: Database migrations and seeding will be handled during container startup"
-echo "    This ensures proper database connectivity and fresh setup."
+# Optimize for production (skip if Docker will handle it)
+if [ "$SKIP_OPTIMIZATION" != "true" ]; then
+  echo "⚡ Optimizing Laravel..."
+  php artisan config:cache || true
+  php artisan route:cache || true
+  php artisan view:cache || true
+fi
 
 # Create storage link
 echo "🔗 Creating storage link..."
 php artisan storage:link || true
 
-echo "✅ Build process completed successfully!"
-echo "🚀 Ready for PostgreSQL deployment with fresh migrations and seeding!"
+echo "✅ Build completed successfully!"
