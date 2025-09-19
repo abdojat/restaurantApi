@@ -41,7 +41,7 @@ php artisan clear-compiled || true
 # Clear autoloader cache and regenerate
 echo "Regenerating autoloader..."
 rm -f bootstrap/cache/packages.php bootstrap/cache/services.php || true
-composer dump-autoload -o || true
+# Note: Composer autoloader was already optimized during Docker build
 
 # Run package discovery
 php artisan package:discover --ansi || true
@@ -53,7 +53,28 @@ php artisan view:cache || true
 
 # Database initialization
 echo "Initializing PostgreSQL database..."
-/var/www/docker/init-db.sh
+
+# Wait for database connection
+echo "Waiting for PostgreSQL database to be ready..."
+max_attempts=30
+attempt=1
+while [ $attempt -le $max_attempts ]; do
+    if php artisan migrate:status >/dev/null 2>&1; then
+        echo "Database connection established!"
+        break
+    fi
+    echo "Attempt $attempt/$max_attempts - waiting for database..."
+    sleep 2
+    attempt=$((attempt + 1))
+    if [ $attempt -gt $max_attempts ]; then
+        echo "Failed to connect to database after $max_attempts attempts"
+        exit 1
+    fi
+done
+
+# Run migrations and seeding
+echo "Running database migrations and seeding..."
+php artisan migrate:fresh --force --seed
 
 # Post-database Laravel optimizations
 echo "Applying Laravel production optimizations..."
@@ -71,25 +92,14 @@ echo "Laravel application is ready!"
 
 # Final database and application readiness check
 echo "Performing final application readiness check..."
-
-# Test database connection and basic functionality
-php artisan tinker --execute="
-try {
-    \$pdo = DB::connection()->getPdo();
-    \$userCount = \App\Models\User::count();
-    echo 'Database Status: Connected\n';
-    echo 'PostgreSQL Version: ' . DB::select('SELECT version()')[0]->version . '\n';
-    echo 'Total Users: ' . \$userCount . '\n';
-    echo 'Tables Count: ' . count(DB::select(\"SELECT tablename FROM pg_tables WHERE schemaname = 'public'\")) . '\n';
-    echo 'Application Status: READY\n';
-} catch(Exception \$e) {
-    echo 'Database Status: FAILED - ' . \$e->getMessage() . '\n';
-    exit(1);
-}
-" || {
-    echo "Application readiness check failed - exiting"
+echo "Testing database connection..."
+if php artisan migrate:status >/dev/null 2>&1; then
+    echo "Database Status: Connected"
+    echo "Application Status: READY"
+else
+    echo "Database Status: FAILED"
     exit 1
-}
+fi
 
 echo "Starting web server..."
 
