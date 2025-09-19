@@ -11,6 +11,10 @@ return [
     | or "CORS". This determines what cross-origin operations may execute
     | in web browsers. You are free to adjust these settings as needed.
     |
+    | CURRENT CONFIG: ALLOWS ALL ORIGINS (*)
+    | This is permissive and allows any domain to access your API.
+    | Good for development and testing, but consider restricting in production.
+    |
     | To learn more: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
     |
     */
@@ -19,31 +23,9 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [
-        'http://localhost:3000',      // React dev server
-        'http://localhost:5173',      // Vite dev server  
-        'http://localhost:5601',      // Your mobile app
-        'http://127.0.0.1:3000',
-        'http://127.0.0.1:5173',
-        'http://127.0.0.1:5601',
-        'https://localhost:3000',     // HTTPS versions
-        'https://localhost:5173',
-        'https://localhost:5601',
-        'https://127.0.0.1:3000',
-        'https://127.0.0.1:5173',
-        'https://127.0.0.1:5601',
-        // Add your production domains here
-        // 'https://yourdomain.com',
-        // 'https://app.yourdomain.com',
-    ],
+    'allowed_origins' => ['*'],
 
-    'allowed_origins_patterns' => [
-        // Allow any localhost port
-        '/^http:\/\/localhost:\d+$/',
-        '/^https:\/\/localhost:\d+$/',
-        '/^http:\/\/127\.0\.0\.1:\d+$/',
-        '/^https:\/\/127\.0\.0\.1:\d+$/',
-    ],
+    'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 
@@ -51,6 +33,6 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => false,
+    'supports_credentials' => true,
 
 ];
