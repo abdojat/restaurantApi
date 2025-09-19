@@ -64,6 +64,53 @@ Route::get('image/{path}', function ($path) {
     }
 })->where('path', '.*');
 
+// Alternative image route for direct storage access (for backward compatibility)
+Route::get('storage/{path}', function ($path) {
+    try {
+        // Security: Prevent directory traversal
+        $path = str_replace(['../', '..\\'], '', $path);
+        
+        $fullPath = storage_path('app/public/' . $path);
+        
+        // Log for debugging
+        \Log::info('Storage image request:', [
+            'requested_path' => $path,
+            'full_path' => $fullPath,
+            'exists' => file_exists($fullPath)
+        ]);
+        
+        if (!file_exists($fullPath)) {
+            \Log::warning('Storage image not found:', ['path' => $fullPath]);
+            return response()->json([
+                'error' => 'Image not found',
+                'path' => $path,
+                'debug' => 'File does not exist: ' . $fullPath
+            ], 404);
+        }
+        
+        $file = file_get_contents($fullPath);
+        $mimeType = mime_content_type($fullPath) ?: 'image/jpeg';
+        
+        return response($file, 200)
+            ->header('Content-Type', $mimeType)
+            ->header('Cache-Control', 'public, max-age=3600')
+            ->header('Access-Control-Allow-Origin', '*')
+            ->header('Access-Control-Allow-Methods', 'GET')
+            ->header('Access-Control-Allow-Headers', 'Content-Type');
+            
+    } catch (\Exception $e) {
+        \Log::error('Storage image route error:', [
+            'path' => $path,
+            'error' => $e->getMessage()
+        ]);
+        
+        return response()->json([
+            'error' => 'Failed to serve image',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+})->where('path', '.*');
+
 // Public menu routes
 Route::prefix('menu')->group(function () {
     Route::get('/', [MenuController::class, 'getMenu']);
