@@ -34,7 +34,7 @@ Route::get('image/{path}', function ($path) {
 // Public menu routes
 Route::prefix('menu')->group(function () {
     Route::get('/', [MenuController::class, 'getMenu']);
-    Route::get('/tables', [ManagerController::class, 'getTables']);
+    Route::get('tables', [ManagerController::class, 'getTables']);
     Route::get('categories', [MenuController::class, 'getCategories']);
     Route::get('categories/{id}/dishes', [MenuController::class, 'getDishesByCategory']);
     Route::get('dishes/{id}', [MenuController::class, 'getDish']);

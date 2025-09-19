@@ -16,7 +16,26 @@ class ManagerController extends Controller
      */
     public function getTables()
     {
-        $tables = Table::with(['activeReservations:id,table_id,user_id,start_date,end_date,image_path'])->get();
+        $tables = Table::with(['activeReservations:id,table_id,user_id,start_date,end_date'])
+            ->get()
+            ->map(function ($table) {
+                return [
+                    'id' => $table->id,
+                    'name' => $table->name,
+                    'name_ar' => $table->name_ar,
+                    'capacity' => $table->capacity,
+                    'type' => $table->type,
+                    'status' => $table->status,
+                    'description' => $table->description,
+                    'description_ar' => $table->description_ar,
+                    'is_active' => $table->is_active,
+                    'image_path' => $table->image_path, // Always included, even if null
+                    'created_at' => $table->created_at,
+                    'updated_at' => $table->updated_at,
+                    'active_reservations' => $table->activeReservations,
+                    'reservations_list' => $table->reservations_list,
+                ];
+            });
         
         return response()->json([
             'tables' => $tables
