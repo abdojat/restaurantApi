@@ -52,7 +52,8 @@ COPY --from=vendor /app /var/www
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisord.conf
 COPY docker/start.sh /start.sh
-RUN chmod +x /start.sh
+COPY docker/init-db.sh /var/www/docker/init-db.sh
+RUN chmod +x /start.sh /var/www/docker/init-db.sh
 
 # Create necessary directories
 RUN mkdir -p /var/www/storage/app/public \

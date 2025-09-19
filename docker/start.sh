@@ -51,18 +51,16 @@ php artisan config:cache || true
 php artisan route:cache || true
 php artisan view:cache || true
 
-# Run migrations and seed database
-echo "Running database migrations..."
-php artisan migrate --force
+# Database initialization
+echo "Initializing PostgreSQL database..."
+/var/www/docker/init-db.sh
 
-# Seed database only if it's empty
-echo "Checking if database needs seeding..."
-if [ $(php artisan tinker --execute="echo \App\Models\User::count();") -eq 0 ]; then
-  echo "Seeding database with initial data..."
-  php artisan db:seed --force
-else
-  echo "Database already has data, skipping seeding..."
-fi
+# Post-database Laravel optimizations
+echo "Applying Laravel production optimizations..."
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+echo "Laravel optimization completed!"
 
 # Create storage link (remove existing if it exists)
 echo "Creating storage link..."
@@ -71,9 +69,27 @@ php artisan storage:link || true
 
 echo "Laravel application is ready!"
 
-# Final database connection check before starting web server
-echo "Testing database connection..."
-php artisan tinker --execute="echo 'Database connection: ' . (DB::connection()->getPdo() ? 'OK' : 'FAILED');" || echo "Database connection test failed"
+# Final database and application readiness check
+echo "Performing final application readiness check..."
+
+# Test database connection and basic functionality
+php artisan tinker --execute="
+try {
+    \$pdo = DB::connection()->getPdo();
+    \$userCount = \App\Models\User::count();
+    echo 'Database Status: Connected\n';
+    echo 'PostgreSQL Version: ' . DB::select('SELECT version()')[0]->version . '\n';
+    echo 'Total Users: ' . \$userCount . '\n';
+    echo 'Tables Count: ' . count(DB::select(\"SELECT tablename FROM pg_tables WHERE schemaname = 'public'\")) . '\n';
+    echo 'Application Status: READY\n';
+} catch(Exception \$e) {
+    echo 'Database Status: FAILED - ' . \$e->getMessage() . '\n';
+    exit(1);
+}
+" || {
+    echo "Application readiness check failed - exiting"
+    exit 1
+}
 
 echo "Starting web server..."
 
