@@ -8,28 +8,11 @@ use App\Models\Category;
 use App\Models\Dish;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Cloudinary\Cloudinary;
+use Illuminate\Support\Str;
+use GuzzleHttp\Client;
 
 class ManagerController extends Controller
 {
-    /**
-     * Upload image to Cloudinary and return the secure URL.
-     */
-    private function uploadToCloudinary($file, $folder = 'restaurant')
-    {
-        $cloudinary = new Cloudinary([
-            'cloud' => [
-                'cloud_name' => config('cloudinary.cloud_name'),
-                'api_key'    => config('cloudinary.api_key'),
-                'api_secret' => config('cloudinary.api_secret'),
-            ],
-        ]);
-        $result = $cloudinary->uploadApi()->upload($file->getRealPath(), [
-            'folder' => $folder,
-            'resource_type' => 'image',
-        ]);
-        return $result['secure_url'] ?? null;
-    }
     /**
      * Get all tables.
      */
@@ -62,6 +45,105 @@ class ManagerController extends Controller
     }
 
     /**
+     * Upload a file to Cloudinary and return the secure URL or null on failure.
+     *
+     * This method attempts to use the Cloudinary SDK if installed. If not,
+     * it falls back to a direct HTTP upload using Guzzle and the Cloudinary
+     * REST API. Configure using one of:
+     * - CLOUDINARY_URL (preferred), or
+     * - CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, and optionally CLOUDINARY_UPLOAD_PRESET for unsigned uploads.
+     */
+    private function uploadToCloudinary($file, $folder = null)
+    {
+        // If Cloudinary SDK is available, prefer it.
+        if (class_exists(\Cloudinary\Cloudinary::class)) {
+            try {
+                $cloudinary = new \Cloudinary\Cloudinary(env('CLOUDINARY_URL'));
+                $uploader = $cloudinary->uploadApi();
+
+                $options = [];
+                if ($folder) {
+                    $options['folder'] = $folder;
+                }
+
+                // If unsigned preset is set, use it
+                if (env('CLOUDINARY_UPLOAD_PRESET')) {
+                    $options['upload_preset'] = env('CLOUDINARY_UPLOAD_PRESET');
+                }
+
+                $result = $uploader->upload($file->getPathname(), $options);
+                return $result['secure_url'] ?? null;
+            } catch (\Throwable $e) {
+                // Fall through to HTTP fallback
+            }
+        }
+
+        // HTTP fallback using Guzzle
+        try {
+            $cloudName = env('CLOUDINARY_CLOUD_NAME');
+            $apiKey = env('CLOUDINARY_API_KEY');
+            $apiSecret = env('CLOUDINARY_API_SECRET');
+            $uploadPreset = env('CLOUDINARY_UPLOAD_PRESET');
+
+            if (empty($cloudName)) {
+                // Can't proceed without cloud name
+                return null;
+            }
+
+            $client = new Client(['timeout' => 30]);
+
+            $url = "https://api.cloudinary.com/v1_1/{$cloudName}/image/upload";
+
+            $multipart = [
+                [
+                    'name' => 'file',
+                    'contents' => fopen($file->getPathname(), 'r'),
+                    'filename' => $file->getClientOriginalName()
+                ],
+            ];
+
+            if ($uploadPreset) {
+                $multipart[] = ['name' => 'upload_preset', 'contents' => $uploadPreset];
+                if ($folder) {
+                    $multipart[] = ['name' => 'folder', 'contents' => $folder];
+                }
+            } elseif ($apiKey && $apiSecret) {
+                // Signed upload: add timestamp and signature
+                $timestamp = time();
+                $paramsToSign = [];
+                if ($folder) $paramsToSign['folder'] = $folder;
+                $paramsToSign['timestamp'] = $timestamp;
+
+                // Create signature string (sorted by key)
+                ksort($paramsToSign);
+                $toSign = http_build_query($paramsToSign, '', '&');
+                // Cloudinary expects '&' separated key=val pairs without encoding for signature
+                $toSign = str_replace('%2F', '/', rawurlencode(urldecode($toSign)));
+                $signature = hash('sha1', $toSign . $apiSecret);
+
+                $multipart[] = ['name' => 'api_key', 'contents' => $apiKey];
+                $multipart[] = ['name' => 'timestamp', 'contents' => $timestamp];
+                $multipart[] = ['name' => 'signature', 'contents' => $signature];
+                if ($folder) {
+                    $multipart[] = ['name' => 'folder', 'contents' => $folder];
+                }
+            } else {
+                // No valid upload method configured
+                return null;
+            }
+
+            $response = $client->post($url, [
+                'multipart' => $multipart,
+            ]);
+
+            $body = json_decode((string) $response->getBody(), true);
+            return $body['secure_url'] ?? null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
      * Create a new table.
      */
     public function createTable(Request $request)
@@ -78,8 +160,10 @@ class ManagerController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            $url = $this->uploadToCloudinary($request->file('image'), 'tables');
-            $data['image_path'] = $url;
+            $uploaded = $this->uploadToCloudinary($request->file('image'), 'tables');
+            if ($uploaded) {
+                $data['image_path'] = $uploaded;
+            }
         }
 
         $table = Table::create($data);
@@ -110,9 +194,12 @@ class ManagerController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            // Optionally: you may want to delete the old image from Cloudinary if you store the public_id
-            $url = $this->uploadToCloudinary($request->file('image'), 'tables');
-            $data['image_path'] = $url;
+            // If the old image is a Cloudinary URL we can't delete it via Storage; skip deletion.
+            // If you store Cloudinary public_id in the DB, implement deletion via Cloudinary API here.
+            $uploaded = $this->uploadToCloudinary($request->file('image'), 'tables');
+            if ($uploaded) {
+                $data['image_path'] = $uploaded;
+            }
         }
 
         $table->update($data);
@@ -226,8 +313,10 @@ class ManagerController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('categories', 'public');
-            $data['image_path'] = $path;
+            $uploaded = $this->uploadToCloudinary($request->file('image'), 'categories');
+            if ($uploaded) {
+                $data['image_path'] = $uploaded;
+            }
         }
 
         $category = Category::create($data);
@@ -256,13 +345,11 @@ class ManagerController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            // Delete old image
-            if ($category->image_path) {
-                Storage::disk('public')->delete($category->image_path);
+            // If the old image is a Cloudinary URL we can't delete it via Storage; skip deletion.
+            $uploaded = $this->uploadToCloudinary($request->file('image'), 'categories');
+            if ($uploaded) {
+                $data['image_path'] = $uploaded;
             }
-            
-            $path = $request->file('image')->store('categories', 'public');
-            $data['image_path'] = $path;
         }
 
         $category->update($data);
@@ -349,8 +436,10 @@ class ManagerController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            $url = $this->uploadToCloudinary($request->file('image'), 'dishes');
-            $data['image_path'] = $url;
+            $uploaded = $this->uploadToCloudinary($request->file('image'), 'dishes');
+            if ($uploaded) {
+                $data['image_path'] = $uploaded;
+            }
         }
 
         $dish = Dish::create($data);
@@ -389,9 +478,11 @@ class ManagerController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            // Optionally: you may want to delete the old image from Cloudinary if you store the public_id
-            $url = $this->uploadToCloudinary($request->file('image'), 'dishes');
-            $data['image_path'] = $url;
+            // If the old image is a Cloudinary URL we can't delete it via Storage; skip deletion.
+            $uploaded = $this->uploadToCloudinary($request->file('image'), 'dishes');
+            if ($uploaded) {
+                $data['image_path'] = $uploaded;
+            }
         }
 
         $dish->update($data);
