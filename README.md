@@ -1,8 +1,3 @@
-<!--
-	Professional README for the Restaurant Management System API
-	- Written to be clear, actionable and ready for GitHub
--->
-
 # Shami Restaurant — REST API
 
 A production-ready Laravel (v12+) REST API for managing restaurant operations: user & role management, menu (categories & dishes), table reservations, order processing, image uploads (Cloudinary support), and deployment-ready Docker configuration.
@@ -240,13 +235,3 @@ Coding style:
 ## License
 
 This project is released under the MIT License. See LICENSE for details.
-
----
-
-If you'd like, I can also:
-
-- Add a short badges header (CI, license, PHP version)
-- Generate an OpenAPI/Swagger spec from the routes
-- Add example Postman collection or a small Postman environment
-
-Tell me which extras you prefer and I will add them.
