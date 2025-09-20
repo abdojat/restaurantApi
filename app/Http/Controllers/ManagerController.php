@@ -74,6 +74,7 @@ class ManagerController extends Controller
                 $result = $uploader->upload($file->getPathname(), $options);
                 return $result['secure_url'] ?? null;
             } catch (\Throwable $e) {
+                logger()->error('Cloudinary SDK upload failed: ' . $e->getMessage());
                 // Fall through to HTTP fallback
             }
         }
@@ -114,11 +115,13 @@ class ManagerController extends Controller
                 if ($folder) $paramsToSign['folder'] = $folder;
                 $paramsToSign['timestamp'] = $timestamp;
 
-                // Create signature string (sorted by key)
+                // Create signature string (sorted by key, concatenated as key=value&key2=value2)
                 ksort($paramsToSign);
-                $toSign = http_build_query($paramsToSign, '', '&');
-                // Cloudinary expects '&' separated key=val pairs without encoding for signature
-                $toSign = str_replace('%2F', '/', rawurlencode(urldecode($toSign)));
+                $pairs = [];
+                foreach ($paramsToSign as $k => $v) {
+                    $pairs[] = $k . '=' . $v;
+                }
+                $toSign = implode('&', $pairs);
                 $signature = hash('sha1', $toSign . $apiSecret);
 
                 $multipart[] = ['name' => 'api_key', 'contents' => $apiKey];
@@ -129,6 +132,7 @@ class ManagerController extends Controller
                 }
             } else {
                 // No valid upload method configured
+                logger()->error('Cloudinary upload: no cloud name or credentials configured.');
                 return null;
             }
 
@@ -139,6 +143,7 @@ class ManagerController extends Controller
             $body = json_decode((string) $response->getBody(), true);
             return $body['secure_url'] ?? null;
         } catch (\Throwable $e) {
+            logger()->error('Cloudinary HTTP upload failed: ' . $e->getMessage());
             return null;
         }
     }
@@ -197,9 +202,10 @@ class ManagerController extends Controller
             // If the old image is a Cloudinary URL we can't delete it via Storage; skip deletion.
             // If you store Cloudinary public_id in the DB, implement deletion via Cloudinary API here.
             $uploaded = $this->uploadToCloudinary($request->file('image'), 'tables');
-            if ($uploaded) {
-                $data['image_path'] = $uploaded;
+            if (!$uploaded) {
+                return response()->json(['message' => 'Image upload failed.'], 500);
             }
+            $data['image_path'] = $uploaded;
         }
 
         $table->update($data);
@@ -347,9 +353,10 @@ class ManagerController extends Controller
         if ($request->hasFile('image')) {
             // If the old image is a Cloudinary URL we can't delete it via Storage; skip deletion.
             $uploaded = $this->uploadToCloudinary($request->file('image'), 'categories');
-            if ($uploaded) {
-                $data['image_path'] = $uploaded;
+            if (!$uploaded) {
+                return response()->json(['message' => 'Image upload failed.'], 500);
             }
+            $data['image_path'] = $uploaded;
         }
 
         $category->update($data);
@@ -376,7 +383,10 @@ class ManagerController extends Controller
 
         // Delete image
         if ($category->image_path) {
-            Storage::disk('public')->delete($category->image_path);
+            // Only delete from local storage if the path is a relative/local path
+            if (!Str::startsWith($category->image_path, ['http://', 'https://'])) {
+                Storage::disk('public')->delete($category->image_path);
+            }
         }
 
         $category->delete();
@@ -480,9 +490,10 @@ class ManagerController extends Controller
         if ($request->hasFile('image')) {
             // If the old image is a Cloudinary URL we can't delete it via Storage; skip deletion.
             $uploaded = $this->uploadToCloudinary($request->file('image'), 'dishes');
-            if ($uploaded) {
-                $data['image_path'] = $uploaded;
+            if (!$uploaded) {
+                return response()->json(['message' => 'Image upload failed.'], 500);
             }
+            $data['image_path'] = $uploaded;
         }
 
         $dish->update($data);
@@ -511,7 +522,9 @@ class ManagerController extends Controller
 
         // Delete image
         if ($dish->image_path) {
-            Storage::disk('public')->delete($dish->image_path);
+            if (!Str::startsWith($dish->image_path, ['http://', 'https://'])) {
+                Storage::disk('public')->delete($dish->image_path);
+            }
         }
 
         $dish->delete();
