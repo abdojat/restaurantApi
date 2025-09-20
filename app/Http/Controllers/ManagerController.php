@@ -8,9 +8,28 @@ use App\Models\Category;
 use App\Models\Dish;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Cloudinary\Cloudinary;
 
 class ManagerController extends Controller
 {
+    /**
+     * Upload image to Cloudinary and return the secure URL.
+     */
+    private function uploadToCloudinary($file, $folder = 'restaurant')
+    {
+        $cloudinary = new Cloudinary([
+            'cloud' => [
+                'cloud_name' => config('cloudinary.cloud_name'),
+                'api_key'    => config('cloudinary.api_key'),
+                'api_secret' => config('cloudinary.api_secret'),
+            ],
+        ]);
+        $result = $cloudinary->uploadApi()->upload($file->getRealPath(), [
+            'folder' => $folder,
+            'resource_type' => 'image',
+        ]);
+        return $result['secure_url'] ?? null;
+    }
     /**
      * Get all tables.
      */
@@ -59,8 +78,8 @@ class ManagerController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('tables', 'public');
-            $data['image_path'] = $path;
+            $url = $this->uploadToCloudinary($request->file('image'), 'tables');
+            $data['image_path'] = $url;
         }
 
         $table = Table::create($data);
@@ -91,13 +110,9 @@ class ManagerController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            // Delete old image
-            if ($table->image_path) {
-                Storage::disk('public')->delete($table->image_path);
-            }
-            
-            $path = $request->file('image')->store('tables', 'public');
-            $data['image_path'] = $path;
+            // Optionally: you may want to delete the old image from Cloudinary if you store the public_id
+            $url = $this->uploadToCloudinary($request->file('image'), 'tables');
+            $data['image_path'] = $url;
         }
 
         $table->update($data);
@@ -334,8 +349,8 @@ class ManagerController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('dishes', 'public');
-            $data['image_path'] = $path;
+            $url = $this->uploadToCloudinary($request->file('image'), 'dishes');
+            $data['image_path'] = $url;
         }
 
         $dish = Dish::create($data);
@@ -374,13 +389,9 @@ class ManagerController extends Controller
         ]);
 
         if ($request->hasFile('image')) {
-            // Delete old image
-            if ($dish->image_path) {
-                Storage::disk('public')->delete($dish->image_path);
-            }
-            
-            $path = $request->file('image')->store('dishes', 'public');
-            $data['image_path'] = $path;
+            // Optionally: you may want to delete the old image from Cloudinary if you store the public_id
+            $url = $this->uploadToCloudinary($request->file('image'), 'dishes');
+            $data['image_path'] = $url;
         }
 
         $dish->update($data);
