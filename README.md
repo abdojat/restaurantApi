@@ -1,230 +1,252 @@
-# Restaurant Management System API
+<!--
+	Professional README for the Restaurant Management System API
+	- Written to be clear, actionable and ready for GitHub
+-->
 
-A comprehensive Laravel-based REST API for managing restaurant operations including user management, table reservations, menu management, and order processing.
+# Shami Restaurant — REST API
 
-## Features
+A production-ready Laravel (v12+) REST API for managing restaurant operations: user & role management, menu (categories & dishes), table reservations, order processing, image uploads (Cloudinary support), and deployment-ready Docker configuration.
 
-### User Management
-- **Admin**: Full system access and control
-- **Manager**: Can manage users, tables, reservations, and menu
-- **Cashier**: Can manage orders and update order statuses
-- **Customer**: Can make reservations and place orders
+Table of contents
+- Overview
+- Key features
+- Quick start (dev)
+- Configuration
+- Database & seeders
+- API summary
+- Authentication & RBAC
+- File uploads (Cloudinary)
+- Deployment (Docker + Render)
+- Testing
+- Contributing
+- License
 
-### Core Functionality
-- Table reservations and management
-- Menu management with categories and dishes
-- Order processing and tracking
-- Role-based access control
-- User profiles and authentication
+## Overview
 
-## API Endpoints
+Shami Restaurant API is designed as a modular, secure, and deployable backend for restaurant mobile/web apps. It follows Laravel best practices and includes:
 
-### Authentication (Public)
-```
-POST /api/auth/register          - User registration
-POST /api/auth/login             - User login
-POST /api/auth/password/forgot   - Forgot password
-POST /api/auth/password/reset    - Reset password
-```
+- Role-based access control (Admin, Manager, Cashier, Customer)
+- Reservation handling with capacity and availability checks
+- Full order lifecycle management (pending → processing → ready → delivered)
+- Menu management with dietary flags (vegetarian, vegan, gluten-free), discounts and ratings
+- Image upload support (local storage or Cloudinary)
+- Dockerized setup and Render CI/CD blueprint (`render.yaml`)
 
-### Menu (Public)
-```
-GET  /api/menu                   - Get complete menu
-GET  /api/menu/categories        - Get menu categories
-GET  /api/menu/categories/{id}/dishes - Get dishes by category
-GET  /api/menu/dishes/{id}       - Get dish details
-GET  /api/menu/search            - Search dishes
-GET  /api/menu/popular           - Get popular dishes
-GET  /api/menu/highlights        - Get menu highlights
-GET  /api/menu/dietary/{preference} - Get dishes by dietary preference
-```
+## Key features
 
-### Protected Routes
+- Authentication with Laravel Sanctum (token-based API auth)
+- User management and default seeded accounts for quick testing
+- Manager endpoints for tables, categories and dishes
+- Cashier endpoints for order processing and tracking
+- Public menu endpoints (search, popular, dietary filters)
+- Database-agnostic configuration (SQLite for local dev, PostgreSQL for production)
+- Production-ready Dockerfile with PHP opcache and optimized build steps
 
-#### Auth Management (Authenticated Users)
-```
-GET  /api/auth/me                - Get user profile
-POST /api/auth/logout            - Logout
-PUT  /api/auth/profile           - Update profile
-PUT  /api/auth/phone             - Update phone number
-PUT  /api/auth/password          - Change password
-POST /api/auth/email/verification-notification - Send verification email
-GET  /api/auth/email/verify      - Verify email
-```
+## Quick start (local development)
 
-#### Admin Routes (Admin Only)
-```
-GET  /api/admin/users            - Get all users
-GET  /api/admin/users/{id}       - Get specific user
-POST /api/admin/users            - Create user
-PUT  /api/admin/users/{id}       - Update user
-DELETE /api/admin/users/{id}     - Delete user
+Prerequisites: PHP 8.2+, Composer, Node (optional), and Docker (optional).
 
-GET  /api/admin/roles            - Get all roles
-POST /api/admin/roles            - Create role
-PUT  /api/admin/roles/{id}       - Update role
-DELETE /api/admin/roles/{id}     - Delete role
+1. Clone the repository:
 
-GET  /api/admin/stats            - Get system statistics
+```bash
+git clone https://github.com/abdojat/restaurantApi.git
+cd restaurantApi/server
 ```
 
-#### Manager Routes (Admin + Manager)
-```
-# Table Management
-GET  /api/manager/tables         - Get all tables
-POST /api/manager/tables         - Create table
-PUT  /api/manager/tables/{id}    - Update table
-DELETE /api/manager/tables/{id}  - Delete table
+2. Install PHP dependencies:
 
-# Reservation Management
-GET  /api/manager/reservations   - Get all reservations
-PUT  /api/manager/reservations/{id}/status - Update reservation status
-
-# Category Management
-GET  /api/manager/categories     - Get all categories
-POST /api/manager/categories     - Create category
-PUT  /api/manager/categories/{id} - Update category
-DELETE /api/manager/categories/{id} - Delete category
-
-# Dish Management
-GET  /api/manager/dishes         - Get all dishes
-POST /api/manager/dishes         - Create dish
-PUT  /api/manager/dishes/{id}    - Update dish
-DELETE /api/manager/dishes/{id}  - Delete dish
+```bash
+composer install
 ```
 
-#### Cashier Routes (Admin + Manager + Cashier)
-```
-GET  /api/cashier/orders         - Get all orders
-GET  /api/cashier/orders/needing-attention - Get orders needing attention
-GET  /api/cashier/orders/today-summary - Get today's order summary
-GET  /api/cashier/orders/{id}    - Get specific order
-PUT  /api/cashier/orders/{id}/status - Update order status
-PUT  /api/cashier/orders/{orderId}/items/{itemId}/status - Update order item status
-PUT  /api/cashier/orders/{id}/delivered - Mark order as delivered
-PUT  /api/cashier/orders/{id}/cancel - Cancel order
-GET  /api/cashier/orders/table/{tableId} - Get orders by table
-GET  /api/cashier/orders/user/{userId} - Get orders by user
+3. Copy environment file and generate app key:
+
+```bash
+cp .env.example .env
+php artisan key:generate
 ```
 
-#### Customer Routes (Customer Only)
-```
-# Table Reservations
-GET  /api/customer/tables/available - Get available tables
-POST /api/customer/reservations   - Create reservation
-GET  /api/customer/reservations   - Get user's reservations
-PUT  /api/customer/reservations/{id}/cancel - Cancel reservation
+4. Create sqlite file (local dev) and run migrations & seeders:
 
-# Orders
-GET  /api/customer/dishes         - Get available dishes
-POST /api/customer/orders         - Create order
-GET  /api/customer/orders         - Get user's orders
-GET  /api/customer/orders/{id}    - Get specific order
-PUT  /api/customer/orders/{id}/cancel - Cancel order
-GET  /api/customer/orders/{id}/track - Track order
+```bash
+php artisan migrate:fresh --seed
 ```
 
-## Database Schema
+5. Start the dev server:
 
-### Core Tables
-- **users** - User accounts with role relationships
-- **roles** - User roles (admin, manager, cashier, customer)
-- **user_roles** - Many-to-many relationship between users and roles
-- **tables** - Restaurant tables with capacity and status
-- **categories** - Menu categories
-- **dishes** - Menu items with dietary information
-- **reservations** - Table reservations
-- **orders** - Food orders
-- **order_items** - Individual items in orders
+```bash
+php artisan serve --host=127.0.0.1 --port=8000
+```
 
-## Installation
+Visit: http://127.0.0.1:8000
 
-1. Clone the repository
-2. Install dependencies: `composer install`
-3. Copy `.env.example` to `.env` and configure database
-4. Generate application key: `php artisan key:generate`
-5. Run migrations: `php artisan migrate:fresh --seed`
-6. Start the server: `php artisan serve`
+Notes:
+- For a Docker-based local dev, build and run the included Dockerfile or use the `docker/` helpers.
+- To serve uploaded images in dev, run `php artisan storage:link`.
 
-## Default Users
+## Configuration
 
-After seeding, the following users are created:
+Important files and settings:
 
-- **Admin**: admin@restaurant.com / admin123
-- **Manager**: manager@restaurant.com / manager123
-- **Cashier**: cashier@restaurant.com / cashier123
-- **Customer**: customer@restaurant.com / customer123
+- `config/database.php` — default uses `pgsql` but the repo includes SQLite settings for local development.
+- `.env` — application environment and database credentials; update when deploying to production.
+- `render.yaml` — Render blueprint with PostgreSQL and web service configuration.
+- `Dockerfile`, `docker/start.sh`, `docker/nginx.conf`, `docker/supervisord.conf` — production-ready Docker configuration.
 
-## Authentication
+Environment variables you should set for production (minimum):
 
-The API uses Laravel Sanctum for authentication. Include the Bearer token in the Authorization header:
+- `APP_ENV`, `APP_DEBUG`, `APP_KEY`, `APP_URL`
+- `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
+- `CLOUDINARY_URL` or `CLOUDINARY_*` variables (optional, see Cloudinary section)
+
+## Database & default seeders
+
+The repository includes migrations and seeders which create:
+
+- Roles and default users (admin, manager, cashier, customer)
+- Sample categories, dishes, tables, reservations, and orders
+
+Default seeded credentials (development/testing only):
+
+- Admin: `admin@restaurant.com` / `admin123`
+- Manager: `manager@restaurant.com` / `manager123`
+- Cashier: `cashier@restaurant.com` / `cashier123`
+- Customer: `customer@restaurant.com` / `customer123`
+
+Always change default passwords before deploying to production.
+
+## API summary
+
+Base URL (local dev): `http://127.0.0.1:8000/api`
+
+High-level endpoints (examples):
+
+- Authentication (public):
+	- `POST /api/auth/register` — register new user
+	- `POST /api/auth/login` — login and retrieve token
+
+- Public menu endpoints:
+	- `GET /api/menu` — complete menu
+	- `GET /api/menu/categories` — list categories
+	- `GET /api/menu/search` — search and filter dishes
+
+- Manager (Admin + Manager):
+	- `POST /api/manager/dishes` — create dish (supports image upload)
+	- `POST /api/manager/categories` — create category
+
+- Cashier (Admin + Manager + Cashier):
+	- `GET /api/cashier/orders` — list orders
+	- `PUT /api/cashier/orders/{id}/status` — update order status
+
+- Customer:
+	- `POST /api/customer/reservations` — create reservation
+	- `POST /api/customer/orders` — create order
+
+For a more complete list of endpoints and example requests, see `API_TESTING_GUIDE.md` in the repository.
+
+## Authentication & RBAC
+
+Authentication: Laravel Sanctum token-based authentication. Include token in header:
 
 ```
 Authorization: Bearer {token}
 ```
 
-## Role-Based Access Control
+Role-based access control is enforced across routes:
 
-- **Admin**: Full access to all endpoints
-- **Manager**: Can manage tables, reservations, menu, and view orders
-- **Cashier**: Can manage orders and update their statuses
-- **Customer**: Can make reservations and place orders
+- Admin — full access
+- Manager — manage menu, tables and reservations
+- Cashier — manage orders
+- Customer — make reservations and create orders
 
-## File Uploads
+## File uploads & Cloudinary
 
-The system supports image uploads for:
-- User avatars
-- Category images
-- Dish images
+The application supports image uploads for avatars, categories and dishes. By default images are stored in `storage/app/public` (use `php artisan storage:link` to expose them).
 
-Images are stored in the `storage/app/public` directory and should be accessible via the `storage:link` command.
+Cloudinary integration (optional):
 
-## Business Logic
+1. Install SDK (optional):
 
-### Table Reservations
-- Tables can only be reserved if available for the requested time
-- Guest count must not exceed table capacity
-- Reservations can be confirmed, cancelled, or completed
+```bash
+composer require cloudinary/cloudinary_php guzzlehttp/guzzle
+```
 
-### Order Management
-- Orders go through statuses: pending → processing → ready → delivered
-- Order items can be tracked individually
-- Cashiers can update order and item statuses
-- Orders can be cancelled if still pending
+2. Set one of the following in `.env`:
 
-### Menu Management
-- Dishes are organized by categories
-- Dietary preferences (vegetarian, vegan, gluten-free) are supported
-- Dishes can be marked as available/unavailable
-- Images and preparation times are supported
+```text
+CLOUDINARY_URL=cloudinary://<API_KEY>:<API_SECRET>@<CLOUD_NAME>
+# OR
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+CLOUDINARY_UPLOAD_PRESET=...
+```
 
-## Error Handling
+When configured, manager endpoints use Cloudinary for uploads and store the secure URL in `image_path`.
 
-The API returns appropriate HTTP status codes and error messages:
-- `200` - Success
-- `201` - Created
-- `400` - Bad Request
-- `401` - Unauthorized
-- `403` - Forbidden
-- `404` - Not Found
-- `422` - Validation Error
-- `500` - Server Error
+## Deployment (Docker + Render)
+
+This repository contains a production-ready `Dockerfile` and `render.yaml` for deploying to Render.
+
+Recommended production flow:
+
+1. Push repository to GitHub.
+2. Update `render.yaml` `repo` value to your repo URL.
+3. Create a Render Blueprint or Web Service that uses `./server/Dockerfile` and `./server` as context.
+4. Configure environment variables in Render (APP_KEY will be auto-generated if enabled).
+5. Verify health check endpoint: `/api/menu/recommendations`.
+
+Post-deploy notes:
+- The provided `Dockerfile` enables `pdo_pgsql` for PostgreSQL and configures opcache.
+- `render.yaml` includes a PostgreSQL service and sample environment variables.
 
 ## Testing
 
-Run the test suite with:
+Run unit and feature tests with:
+
 ```bash
 php artisan test
 ```
 
+API testing examples and curl snippets are available in `API_TESTING_GUIDE.md`.
+
 ## Contributing
 
+We welcome contributions. Please follow these steps:
+
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+2. Create a feature branch: `git checkout -b feature/my-change`
+3. Run tests and add any new tests for your changes
+4. Submit a pull request with a clear description and motivation
+
+Coding style:
+- Follow PSR-12 for PHP code style
+- Keep commits small and focused
+
+## Security & best practices
+
+- Do not commit `.env` or secrets to source control
+- Rotate default passwords and API keys before production
+- Use HTTPS for all production traffic
+- Regularly update Composer and OS packages to patch vulnerabilities
+
+## Files of interest
+
+- `server/Dockerfile` — production Dockerfile
+- `server/render.yaml` — Render deployment blueprint
+- `API_TESTING_GUIDE.md` — API examples and testing instructions
+- `CLOUDINARY_README.md` — Cloudinary integration notes
 
 ## License
 
-This project is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This project is released under the MIT License. See LICENSE for details.
+
+---
+
+If you'd like, I can also:
+
+- Add a short badges header (CI, license, PHP version)
+- Generate an OpenAPI/Swagger spec from the routes
+- Add example Postman collection or a small Postman environment
+
+Tell me which extras you prefer and I will add them.
